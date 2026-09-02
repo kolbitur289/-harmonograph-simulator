@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harmonograph Simulator v0.1</title>
+<style>body{font-family:-apple-system,sans-serif;margin:0;padding:16px;background:#f4f4f2;color:#222}main{max-width:900px;margin:auto}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{background:white;padding:14px;border-radius:12px;border:1px solid #ddd}canvas{width:100%;aspect-ratio:1;background:white;border:1px solid #ddd}.p{border-top:1px solid #ddd;padding-top:10px;margin-top:10px}.row{display:grid;grid-template-columns:1fr 90px;gap:8px;margin:7px 0;align-items:center}input,select,button{font-size:16px;padding:8px;max-width:100%}small{color:#666}@media(max-width:700px){.grid{grid-template-columns:1fr}}</style></head>
+<body><main><h1>Harmonograph Simulator v0.1</h1><p>Three-pendulum physical-mode prototype.</p><div class="grid"><div class="card"><canvas id="c" width="800" height="800"></canvas><p><button id="reset">Reset</button></p></div><div class="card" id="controls"></div></div></main>
+<script>
+const D=[['A — horizontal','x',.5,100,65],['B — vertical','y',.75,100,65],['C — rotary','r',.625,45,65]];
+let S=D.map(x=>({name:x[0],axis:x[1],f:x[2],a:x[3],d:x[4],side:1}));
+const box=document.getElementById('controls'),cv=document.getElementById('c'),g=cv.getContext('2d');
+function ui(){box.innerHTML='';S.forEach((p,i)=>{let d=document.createElement('div');d.className='p';d.innerHTML=`<b>${p.name}</b>
+<div class="row"><label>Frequency<br><small>Hz</small></label><input data-i="${i}" data-k="f" type="number" step=".005" value="${p.f}"></div>
+<div class="row"><label>Pull distance<br><small>relative mm</small></label><input data-i="${i}" data-k="a" type="number" value="${p.a}"></div>
+<div class="row"><label>Release</label><select data-i="${i}" data-k="side"><option value="1">+ maximum</option><option value="-1">− maximum</option></select></div>
+<div class="row"><label>Damping<br><small>seconds to ~37%</small></label><input data-i="${i}" data-k="d" type="number" value="${p.d}"></div>`;box.appendChild(d)})}
+function draw(){g.fillStyle='white';g.fillRect(0,0,800,800);let P=[],m=1,N=7000,T=120;for(let n=0;n<N;n++){let t=T*n/N,x=0,y=0;S.forEach(p=>{let A=p.side*p.a*Math.exp(-t/Math.max(1,p.d)),w=2*Math.PI*p.f*t;if(p.axis==='x')x+=A*Math.cos(w);else if(p.axis==='y')y+=A*Math.cos(w);else{x+=A*Math.cos(w);y+=A*Math.sin(w)}});P.push([x,y]);m=Math.max(m,Math.abs(x),Math.abs(y))}let sc=350/m;g.beginPath();g.strokeStyle='#111';P.forEach((q,j)=>{let x=400+q[0]*sc,y=400-q[1]*sc;j?g.lineTo(x,y):g.moveTo(x,y)});g.stroke()}
+box.addEventListener('input',e=>{let i=+e.target.dataset.i,k=e.target.dataset.k;if(Number.isInteger(i)&&k){S[i][k]=+e.target.value;draw()}});
+document.getElementById('reset').onclick=()=>{S=D.map(x=>({name:x[0],axis:x[1],f:x[2],a:x[3],d:x[4],side:1}));ui();draw()};ui();draw();
+</script></body></html>
