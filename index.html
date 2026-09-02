@@ -1,33 +1,23 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Harmonograph Simulator v0.2</title>
-<style>
-*{box-sizing:border-box}body{margin:0;background:#f4f0e8;color:#26231f;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-.wrap{max-width:920px;margin:auto;padding:18px}h1{font-size:24px;margin:0 0 4px}.sub,.note{color:#6f685e}.sub{margin:0 0 14px;font-size:14px}
-canvas{display:block;width:100%;aspect-ratio:1;background:#fff;border:1px solid #d8d0c4;border-radius:12px}
-.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0}.status{margin-left:auto;font-variant-numeric:tabular-nums}
-button{min-height:44px;border:0;border-radius:9px;padding:0 16px;font-size:15px;background:#2f2d29;color:#fff}.secondary{background:#777168}
-.controls{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card{background:#fffdf8;border:1px solid #d8d0c4;border-radius:12px;padding:12px}
-.card h2{font-size:16px;margin:0 0 10px}label{display:block;font-size:13px;color:#6f685e;margin:9px 0 4px}
-input,select{width:100%;font-size:16px;padding:8px;border:1px solid #d8d0c4;border-radius:8px;background:white}.note{font-size:12px;line-height:1.4}
-@media(max-width:650px){.controls{grid-template-columns:1fr}.status{width:100%;margin-left:0}}
-</style></head><body><div class="wrap">
-<h1>Harmonograph Simulator v0.2</h1><p class="sub">A horizontal + B vertical + C rotary. The trace now unfolds through simulation time.</p>
-<canvas id="paper" width="800" height="800"></canvas>
-<div class="actions"><button id="start">Start</button><button id="pause" class="secondary">Pause</button><button id="reset" class="secondary">Reset</button><div class="status">Elapsed: <strong id="time">0.0 s</strong></div></div>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harmonograph v0.3</title>
+<style>body{font-family:-apple-system,sans-serif;background:#f3efe7;color:#26241f;margin:0}main{max-width:800px;margin:auto;padding:20px}canvas{width:100%;aspect-ratio:1;background:white;border:1px solid #ccc;border-radius:16px}button,input,select{font:inherit;padding:10px;border-radius:10px;border:1px solid #ccc}button{background:#302e29;color:white;font-weight:bold}.controls{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card{background:#fffdf8;padding:15px;border-radius:16px}.card label{display:block;margin-top:10px}.card input,.card select{width:100%;box-sizing:border-box}.row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}@media(max-width:650px){.controls{grid-template-columns:1fr}}</style></head>
+<body><main><h1>Harmonograph Simulator v0.3</h1><p>Physical controls first. Technical meaning underneath.</p>
+<canvas id="cv" width="900" height="900"></canvas>
+<div class="row"><button id="start">Start</button><button id="pause">Pause</button><button id="reset">Reset</button></div>
+<p><b>Elapsed:</b> <span id="time">0.0</span> s &nbsp; <b>Time advance:</b> <span id="spd">1×</span></p>
+<div class="row"><button onclick="speed=1;showSpeed()">1×</button><button onclick="speed=4;showSpeed()">4×</button><button onclick="speed=16;showSpeed()">16×</button><button onclick="speed=64;showSpeed()">64×</button></div>
 <div class="controls">
-<section class="card"><h2>A — Horizontal</h2><label>Frequency (Hz)</label><input id="af" type="number" step=".01" min="0" value=".50"><label>Pull / amplitude</label><input id="aa" type="number" min="0" value="100"><label>Damping time (s)</label><input id="ad" type="number" min=".1" value="65"><label>Release</label><select id="as"><option value="1">+ maximum</option><option value="-1">− maximum</option></select></section>
-<section class="card"><h2>B — Vertical</h2><label>Frequency (Hz)</label><input id="bf" type="number" step=".01" min="0" value=".75"><label>Pull / amplitude</label><input id="ba" type="number" min="0" value="100"><label>Damping time (s)</label><input id="bd" type="number" min=".1" value="65"><label>Release</label><select id="bs"><option value="1">+ maximum</option><option value="-1">− maximum</option></select></section>
-<section class="card"><h2>C — Rotary</h2><label>Frequency (Hz)</label><input id="cf" type="number" step=".01" min="0" value=".625"><label>Pull / amplitude</label><input id="ca" type="number" min="0" value="45"><label>Damping time (s)</label><input id="cd" type="number" min=".1" value="65"><label>Rotation</label><select id="cs"><option value="1">Clockwise</option><option value="-1">Counter-clockwise</option></select></section>
-</div><p class="note">Model: exponential decay A·e<sup>−t/d</sup>. A and B start at maximum displacement; C is an ideal circular oscillator. Inputs lock during a run.</p>
-</div><script>
-(()=>{const c=document.getElementById("paper"),x=c.getContext("2d"),te=document.getElementById("time"),st=document.getElementById("start"),pa=document.getElementById("pause"),re=document.getElementById("reset"),ids=["af","aa","ad","as","bf","ba","bd","bs","cf","ca","cd","cs"];let run=false,t=0,last=null,p=null,prev=null,raf=null;const S=2.25,n=id=>Number(document.getElementById(id).value);
-function read(){return{af:n("af"),aa:n("aa"),ad:Math.max(.1,n("ad")),as:n("as"),bf:n("bf"),ba:n("ba"),bd:Math.max(.1,n("bd")),bs:n("bs"),cf:n("cf"),ca:n("ca"),cd:Math.max(.1,n("cd")),cs:n("cs")}}
-function pt(q){let ax=p.as*p.aa*Math.exp(-q/p.ad)*Math.cos(2*Math.PI*p.af*q),by=p.bs*p.ba*Math.exp(-q/p.bd)*Math.cos(2*Math.PI*p.bf*q),ce=p.ca*Math.exp(-q/p.cd),w=2*Math.PI*p.cf*q;return[c.width/2+S*(ax+ce*Math.cos(w)),c.height/2+S*(by+p.cs*ce*Math.sin(w))]}
-function clear(){x.clearRect(0,0,c.width,c.height);x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.strokeStyle="#e9e5de";x.beginPath();x.moveTo(400,0);x.lineTo(400,800);x.moveTo(0,400);x.lineTo(800,400);x.stroke()}
-function lock(v){ids.forEach(i=>document.getElementById(i).disabled=v)}
-function frame(ms){if(!run)return;if(last===null)last=ms;let target=t+Math.min((ms-last)/1000,.05);last=ms;while(t<target){let nt=Math.min(t+1/180,target),q=pt(nt);if(prev){x.strokeStyle="#292622";x.lineWidth=1.25;x.beginPath();x.moveTo(...prev);x.lineTo(...q);x.stroke()}prev=q;t=nt}te.textContent=t.toFixed(1)+" s";raf=requestAnimationFrame(frame)}
-st.addEventListener("click",()=>{if(run)return;if(!p){p=read();prev=pt(t);lock(true)}run=true;last=null;st.textContent="Continue";raf=requestAnimationFrame(frame)});
-pa.addEventListener("click",()=>{run=false;last=null;if(raf)cancelAnimationFrame(raf)});
-re.addEventListener("click",()=>{run=false;if(raf)cancelAnimationFrame(raf);t=0;last=null;p=null;prev=null;te.textContent="0.0 s";st.textContent="Start";lock(false);clear()});clear()})();
-</script></body></html>
+<div class="card"><h2>A — Horizontal</h2><label>Swing speed (Hz)</label><input id="af" value=".5" type="number" step=".001"><label>Pull / amplitude</label><input id="aa" value="100" type="number"><label>Decay time (s)</label><input id="ad" value="65" type="number"><label>Release delay</label><select id="ap"><option value="0">Release first</option><option value=".25">¼ cycle later</option><option value=".5">½ cycle later</option><option value=".75">¾ cycle later</option></select></div>
+<div class="card"><h2>B — Vertical</h2><label>Swing speed (Hz)</label><input id="bf" value=".5" type="number" step=".001"><label>Pull / amplitude</label><input id="ba" value="100" type="number"><label>Decay time (s)</label><input id="bd" value="65" type="number"><label>Release delay</label><select id="bp"><option value="0">Release first</option><option value=".25" selected>¼ cycle later</option><option value=".5">½ cycle later</option><option value=".75">¾ cycle later</option></select></div>
+<div class="card"><h2>C — Rotary</h2><label>Swing speed (Hz)</label><input id="cf" value=".625" type="number" step=".001"><label>Pull / amplitude</label><input id="ca" value="0" type="number"><label>Decay time (s)</label><input id="cd" value="65" type="number"><label>Rotation</label><select id="dir"><option value="1">Clockwise</option><option value="-1">Anticlockwise</option></select></div>
+</div>
+<p><b>Book test preset:</b> A and B are 1:1, equal pull and decay; B is released ¼ cycle after A; C is off.</p>
+<p><small>Technical: damped simple harmonic motion. Release delay maps to relative phase: ¼ cycle = 90°. Envelope = A·e<sup>−t/τ</sup>.</small></p>
+<script>
+const c=document.getElementById('cv'),g=c.getContext('2d'),T=document.getElementById('time');let running=false,t=0,last=0,prev=null,speed=1;
+const n=id=>parseFloat(document.getElementById(id).value)||0;
+function showSpeed(){document.getElementById('spd').textContent=speed+'×'}
+function clearC(){g.fillStyle='white';g.fillRect(0,0,900,900);g.strokeStyle='#eee';g.beginPath();g.moveTo(450,0);g.lineTo(450,900);g.moveTo(0,450);g.lineTo(900,450);g.stroke();prev=null}
+function pos(q){let x=n('aa')*Math.exp(-q/Math.max(n('ad'),.001))*Math.cos(2*Math.PI*n('af')*q-2*Math.PI*n('ap'));let y=n('ba')*Math.exp(-q/Math.max(n('bd'),.001))*Math.cos(2*Math.PI*n('bf')*q-2*Math.PI*n('bp'));let ca=n('ca'),e=Math.exp(-q/Math.max(n('cd'),.001)),w=2*Math.PI*n('cf')*q;x+=ca*e*Math.cos(w);y+=n('dir')*ca*e*Math.sin(w);return[450+3*x,450+3*y]}
+function frame(ms){if(!running)return;if(!last)last=ms;let a=Math.min((ms-last)/1000,.05)*speed;last=ms;let parts=Math.max(1,Math.ceil(a/.004)),dt=a/parts;g.strokeStyle='#333';g.lineWidth=1.4;for(let i=0;i<parts;i++){t+=dt;let p=pos(t);if(prev){g.beginPath();g.moveTo(...prev);g.lineTo(...p);g.stroke()}prev=p}T.textContent=t.toFixed(1);requestAnimationFrame(frame)}
+start.onclick=()=>{if(!running){running=true;last=0;if(!prev)prev=pos(t);requestAnimationFrame(frame)}};pause.onclick=()=>{running=false;last=0};reset.onclick=()=>{running=false;t=0;last=0;T.textContent='0.0';clearC()};clearC();
+</script></main></body></html>
