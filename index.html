@@ -1,13 +1,14 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harmonograph v0.9</title>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harmonograph v0.10</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#f4f0e7;color:#292824;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:820px;margin:auto;padding:28px 18px 60px}h1{font-size:42px;margin:0 0 12px}.sub{font-size:20px}.wrap{background:#fff;border:1px solid #d8d1c4;border-radius:22px;overflow:hidden}canvas{display:block;width:100%;aspect-ratio:1}.controls,.speeds{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}button{border:0;border-radius:14px;padding:15px 18px;font-size:19px;font-weight:700;background:#2c2b27;color:#fff}.secondary{background:#858178}.status{font-size:19px;font-weight:700}.card{background:#fffdf8;border:1px solid #d8d1c4;border-radius:22px;padding:20px;margin:16px 0}.card h2{font-size:28px;margin:0 0 14px}label{display:block;font-size:18px;font-weight:650;margin:12px 0 6px}input,select{width:100%;font:inherit;font-size:20px;padding:13px;border:1px solid #cbc4b8;border-radius:12px;background:#fff}.tech{color:#777269}@media print{body{background:#fff}main>*{display:none!important}main,.wrap{display:block!important;margin:0!important;padding:0!important;max-width:none!important}.wrap{border:0!important;border-radius:0!important}canvas{width:100%!important}@page{size:A4 portrait;margin:15mm}}
 .tabs{display:flex;gap:8px;margin:12px 0 14px}.tab{background:#858178}.tab.active{background:#2c2b27}
 #machineView{display:none}.machineBox{background:#fff;border:1px solid #d8d1c4;border-radius:22px;overflow:hidden}
 #machine{display:block;width:100%;aspect-ratio:1/1}.machineNote{text-align:center;color:#777269;font-size:14px;margin:8px 0 0}
 @media print{.tabs,#machineView{display:none!important}#drawingView{display:block!important}}
+button:disabled{background:#aaa!important;color:#eee!important;cursor:default}
 </style></head>
-<body><main><h1>Harmonograph Simulator v0.9</h1><div class="tabs"><button id="drawingTab" class="tab active">Drawing</button><button id="machineTab" class="tab">Machine</button></div>
+<body><main><h1>Harmonograph Simulator v0.10</h1><div class="tabs"><button id="drawingTab" class="tab active">Drawing</button><button id="machineTab" class="tab">Machine</button></div>
 <div id="drawingView"><div class="wrap"><canvas id="cv" width="900" height="900"></canvas></div></div>
-<div id="machineView"><div class="machineBox"><canvas id="machine" width="900" height="900"></canvas></div><p class="machineNote">3D line model — two linear pendulums and a corner gimbal pendulum.</p></div>
+<div id="machineView"><div class="machineBox"><canvas id="machine" width="900" height="900"></canvas></div><p class="machineNote">3D line model — raised corner gimbal drawing plate. Motion is visually magnified.</p></div>
 <div class="controls"><button id="start">Start</button><button id="pause" class="secondary">Pause</button><button id="reset" class="secondary">Reset</button><button id="print" class="secondary">Print / Save Drawing</button></div>
 <div class="status">Elapsed: <span id="elapsed">0.0</span> s &nbsp; Time advance: <span id="speedLabel">4×</span></div><div class="speeds"><button data-sp="1">1×</button><button data-sp="4">4×</button><button data-sp="16">16×</button><button data-sp="64">64×</button></div><div id="cards"></div>
 <p class="tech">Model: exponentially damped harmonic motion with continuous phase. “Decay time” is the plain-language control name for the damping time constant. Inputs lock during a run.</p></main>
@@ -19,6 +20,7 @@ function build(){cards.innerHTML='';S.forEach((p,i)=>{let e=document.createEleme
 function lock(v){cards.querySelectorAll('input,select').forEach(e=>e.disabled=v)}
 function drawBase(){g.fillStyle='#fff';g.fillRect(0,0,900,900);g.strokeStyle='#eee';g.lineWidth=1;g.beginPath();g.moveTo(450,0);g.lineTo(450,900);g.moveTo(0,450);g.lineTo(900,450);g.stroke()}
 function pos(q){let x=0,y=0,A=S[0],B=S[1],C=S[2],amp=(p,z)=>p.a*Math.exp(-z/Math.max(.001,p.d)),rad=d=>d*Math.PI/180;x+=amp(A,q)*Math.cos(2*Math.PI*A.f*q-rad(A.phase||0));y+=amp(B,q)*Math.cos(2*Math.PI*B.f*q-rad(B.phase||0));if(C.a){let a=amp(C,q);x+=a*Math.cos(2*Math.PI*C.f*q);y+=(C.dir||1)*a*Math.sin(2*Math.PI*C.f*q)}return[450+x*3.05,450+y*3.05]}
+function updateButtons(){const a=document.getElementById('start'),p=document.getElementById('pause'),r=document.getElementById('reset');if(!a||!p||!r)return;const on=t>0||running;a.disabled=on;p.disabled=!on;r.disabled=!on;if(on){p.style.background='#2c2b27';r.style.background='#2c2b27'}else{p.style.background='';r.style.background=''}}
 function machineRender(){
  const A=S[0],B=S[1],C=S[2],rad=d=>d*Math.PI/180,amp=(p,q)=>p.a*Math.exp(-q/Math.max(.001,p.d));
  const av=amp(A,t)*Math.cos(2*Math.PI*A.f*t-rad(A.phase||0));
@@ -37,20 +39,20 @@ function machineRender(){
  [[-s,-s],[s,-s],[s,s],[-s,s]].forEach(([x,y])=>line([[x,y,z],[x,y,500]],5));
 
  // Layout: gimbal C near one corner. A and B lie at 90 degrees around that corner.
- const Cp=[205,205,z], Ap=[-150,205,z], Bp=[205,-150,z];
+ const Cp=[-205,-205,z], Ap=[155,-205,z], Bp=[-205,155,z];
 
  // faint holes/pivot collars in tabletop
  dot(Ap,10,'#777'); dot(Bp,10,'#777'); dot(Cp,11,'#777');
 
  // Linear pendulum A: passes through top and swings in X.
- const k=.40, L=320, aoff=av*k;
- line([[-150+aoff,205,25],Ap,[-150-aoff,205,z+L]],4);
- cyl([-150-aoff,205,z+L],18,48,'#777');
+ const k=.72, L=320, aoff=av*k;
+ line([[Ap[0]+aoff,Ap[1],25],Ap,[Ap[0]-aoff,Ap[1],z+L]],4);
+ cyl([Ap[0]-aoff,Ap[1],z+L],18,48,'#777');
 
  // Linear pendulum B: passes through top and swings in Y.
  const boff=bv*k;
- line([[205,-150+boff,25],Bp,[205,-150-boff,z+L]],4);
- cyl([205,-150-boff,z+L],18,48,'#85817a');
+ line([[Bp[0],Bp[1]+boff,25],Bp,[Bp[0],Bp[1]-boff,z+L]],4);
+ cyl([Bp[0],Bp[1]-boff,z+L],18,48,'#85817a');
 
  // Gimbal C under the corner drawing plate.
  // Crossed gimbal axes are shown immediately beneath the tabletop.
@@ -58,20 +60,20 @@ function machineRender(){
  line([[Cp[0],Cp[1]-38,z+36],[Cp[0],Cp[1]+38,z+36]],3,'#777');
  let gc=P(Cp[0],Cp[1],z+32);mg.strokeStyle='#888';mg.lineWidth=2;mg.beginPath();mg.ellipse(gc[0],gc[1],32,14,0,0,Math.PI*2);mg.stroke();
 
- const ck=.48, cend=[Cp[0]-cx*ck,Cp[1]-cy*ck,z+355];
+ const ck=.78, cend=[Cp[0]-cx*ck,Cp[1]-cy*ck,z+355];
  line([Cp,cend],4);
  cyl(cend,19,52,'#777');
 
  // Surface plate carried by the gimbal. Its centre follows C motion.
- const pcx=Cp[0]+cx*.36, pcy=Cp[1]+cy*.36, pz=58;
- const pw=150,ph=125;
+ const pcx=Cp[0]+cx*.68, pcy=Cp[1]+cy*.68, pz=38;
+ const pw=135,ph=112;
  poly([[pcx-pw,pcy-ph,pz],[pcx+pw,pcy-ph,pz],[pcx+pw,pcy+ph,pz],[pcx-pw,pcy+ph,pz]],'#f4f2ec','#6b6862',3);
 
  // Arms from the two linear pendulums.
  // Each follows its pendulum's relevant axis and the two arms meet above the plate.
- const joint=[pcx-42+av*.22,pcy-42+bv*.22,pz-10];
- const AarmStart=[Ap[0]+av*.30,Ap[1],z-18];
- const BarmStart=[Bp[0],Bp[1]+bv*.30,z-18];
+ const joint=[pcx+42+av*.52,pcy+42+bv*.52,pz-42];
+ const AarmStart=[Ap[0]+av*.58,Ap[1],z-52];
+ const BarmStart=[Bp[0],Bp[1]+bv*.58,z-52];
  line([AarmStart,joint],5,'#5e5b55');
  line([BarmStart,joint],5,'#5e5b55');
  dot(joint,8,'#4f4c47');
@@ -82,10 +84,10 @@ function machineRender(){
 
  // labels
  const label=(txt,p)=>{let q=P(...p);mg.fillStyle='#34322f';mg.font='bold 24px -apple-system,sans-serif';mg.fillText(txt,q[0]+9,q[1]-7)};
- label('A',[-150,205,z+225]); label('B',[205,-150,z+225]); label('C',[Cp[0],Cp[1],z+275]);
+ label('A',[Ap[0],Ap[1],z+225]); label('B',[Bp[0],Bp[1],z+225]); label('C',[Cp[0],Cp[1],z+275]);
  mg.fillStyle='#777';mg.font='20px -apple-system,sans-serif';mg.fillText(t.toFixed(1)+' s',24,40);
 }
-function render(showPen=true){drawBase();g.strokeStyle='#333';g.lineWidth=1.35;g.beginPath();let p=pos(0);g.moveTo(...p);for(let q=.01;q<=t;q+=.01)g.lineTo(...pos(q));g.stroke();if(showPen&&running&&!finished){p=pos(t);g.fillStyle='#24b34b';g.beginPath();g.arc(p[0],p[1],4,0,Math.PI*2);g.fill()}elapsed.textContent=t.toFixed(1);machineRender()}
+function render(showPen=true){drawBase();g.strokeStyle='#333';g.lineWidth=1.35;g.beginPath();let p=pos(0);g.moveTo(...p);for(let q=.01;q<=t;q+=.01)g.lineTo(...pos(q));g.stroke();if(showPen&&running&&!finished){p=pos(t);g.fillStyle='#24b34b';g.beginPath();g.arc(p[0],p[1],4,0,Math.PI*2);g.fill()}elapsed.textContent=t.toFixed(1);machineRender();updateButtons()}
 function loop(ts){if(!running||paused)return;if(last===null)last=ts;t+=(ts-last)/1000*speed;last=ts;if(t>=180){t=180;running=false;finished=true;lock(false);render(false);return}render(true);raf=requestAnimationFrame(loop)}
 start.onclick=()=>{if(finished){t=0;finished=false}running=true;paused=false;pause.textContent='Pause';last=null;lock(true);raf=requestAnimationFrame(loop)}
 pause.onclick=()=>{if(!running)return;paused=!paused;pause.textContent=paused?'Continue':'Pause';render(true);if(!paused){last=null;raf=requestAnimationFrame(loop)}}
@@ -94,6 +96,6 @@ document.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{speed=+b.datase
 print.onclick=()=>{render(false);window.print();if(running)render(true)}
 
 drawingTab.onclick=()=>{drawingView.style.display='block';machineView.style.display='none';drawingTab.classList.add('active');machineTab.classList.remove('active')};
-machineTab.onclick=()=>{drawingView.style.display='none';machineView.style.display='block';machineTab.classList.add('active');drawingTab.classList.remove('active');machineRender()};
-build();render(false);machineRender();
+machineTab.onclick=()=>{drawingView.style.display='none';machineView.style.display='block';machineTab.classList.add('active');drawingTab.classList.remove('active');machineRender();updateButtons()};
+build();render(false);machineRender();updateButtons();updateButtons();
 </script></body></html>
