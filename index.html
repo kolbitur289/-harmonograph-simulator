@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harmonograph v0.17</title>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harmonograph v0.18</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#f4f0e7;color:#292824;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:820px;margin:auto;padding:28px 18px 60px}h1{font-size:42px;margin:0 0 12px}.sub{font-size:20px}.wrap{background:#fff;border:1px solid #d8d1c4;border-radius:22px;overflow:hidden}canvas{display:block;width:100%;aspect-ratio:1}.controls,.speeds{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}button{border:0;border-radius:14px;padding:15px 18px;font-size:19px;font-weight:700;background:#2c2b27;color:#fff}.secondary{background:#858178}.status{font-size:19px;font-weight:700}.card{background:#fffdf8;border:1px solid #d8d1c4;border-radius:22px;padding:20px;margin:16px 0}.card h2{font-size:28px;margin:0 0 14px}label{display:block;font-size:18px;font-weight:650;margin:12px 0 6px}input,select{width:100%;font:inherit;font-size:20px;padding:13px;border:1px solid #cbc4b8;border-radius:12px;background:#fff}.tech{color:#777269}@media print{body{background:#fff}main>*{display:none!important}main,.wrap{display:block!important;margin:0!important;padding:0!important;max-width:none!important}.wrap{border:0!important;border-radius:0!important}canvas{width:100%!important}@page{size:A4 portrait;margin:15mm}}
 .tabs{display:flex;gap:8px;margin:12px 0 14px}.tab{background:#858178}.tab.active{background:#2c2b27}
 #machineView{display:none}.machineBox{background:#fff;border:1px solid #d8d1c4;border-radius:22px;overflow:hidden}
@@ -6,7 +6,7 @@
 @media print{.tabs,#machineView{display:none!important}#drawingView{display:block!important}}
 button:disabled{background:#aaa!important;color:#eee!important;cursor:default}
 </style></head>
-<body><main><h1>Harmonograph Simulator v0.17</h1><div class="tabs"><button id="drawingTab" class="tab active">Drawing</button><button id="machineTab" class="tab">Machine</button></div>
+<body><main><h1>Harmonograph Simulator v0.18</h1><div class="tabs"><button id="drawingTab" class="tab active">Drawing</button><button id="machineTab" class="tab">Machine</button></div>
 <div id="drawingView"><div class="wrap"><canvas id="cv" width="900" height="900"></canvas></div></div>
 <div id="machineView"><div class="machineBox"><canvas id="machine" width="900" height="900"></canvas></div><p class="machineNote">3D machine model — fixed tabletop pivots, raised arms and square-frame legs. Motion is visually magnified.</p></div>
 <div class="controls"><button id="start">Start</button><button id="pause" class="secondary">Pause</button><button id="reset" class="secondary">Reset</button><button id="print" class="secondary">Print / Save Drawing</button></div>
@@ -58,7 +58,8 @@ function machineRender(){
    line([[a[0],a[1],z+5],[b[0],b[1],z+5]],4,'#5e5b55');
  };
  railBox([-s,-s],[s,-s]); railBox([s,-s],[s,s]); railBox([s,s],[-s,s]); railBox([-s,s],[-s,-s]);
- [[-s,-s],[s,-s],[s,s],[-s,s]].forEach(([x,y])=>prism(x,y,z,500,18));
+ const legHalf=18;
+ [[-s+legHalf,-s+legHalf],[s-legHalf,-s+legHalf],[s-legHalf,s-legHalf],[-s+legHalf,s-legHalf]].forEach(([x,y])=>prism(x,y,z,500,legHalf));
 
  // Layout: gimbal C near one corner. A and B lie at 90 degrees around that corner.
  const Cp=[-205,-205,z], Ap=[155,-205,z], Bp=[-205,155,z];
@@ -115,7 +116,7 @@ function machineRender(){
  line([AarmStart,joint],5,'#5e5b55');
  line([BarmStart,joint],5,'#5e5b55');
  line([joint,[joint[0],joint[1],pz]],3,'#777');
- dot([joint[0],joint[1],pz],5,'#24b34b');
+
 
  // Re-state the three tabletop holes on top of the shaded surface/frame.
  dot(Ap,10,'#6f6c66'); dot(Bp,10,'#6f6c66'); dot(Cp,11,'#6f6c66');
@@ -131,7 +132,32 @@ start.onclick=()=>{if(finished){t=0;finished=false}running=true;paused=false;pau
 pause.onclick=()=>{if(!running)return;paused=!paused;pause.textContent=paused?'Continue':'Pause';render(true);if(!paused){last=null;raf=requestAnimationFrame(loop)}}
 reset.onclick=()=>{cancelAnimationFrame(raf);running=paused=finished=false;t=0;last=null;lock(false);pause.textContent='Pause';render(false)}
 document.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{speed=+b.dataset.sp;speedLabel.textContent=speed+'×'})
-print.onclick=()=>{render(false);window.print();if(running)render(true)}
+print.onclick=()=>{
+ const wasRunning=running&&!paused&&!finished;
+ render(false);
+ const data=cv.toDataURL('image/png');
+ const w=window.open('','_blank');
+ if(!w){
+   alert('Your browser blocked the print window. Please allow pop-ups for this page and try again.');
+   if(wasRunning) render(true);
+   return;
+ }
+ w.document.open();
+ w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Harmonograph Drawing</title>
+ <meta name="viewport" content="width=device-width,initial-scale=1">
+ <style>
+ html,body{margin:0;padding:0;background:#fff}
+ body{display:flex;align-items:flex-start;justify-content:center}
+ img{display:block;width:100%;height:auto;max-width:190mm}
+ @page{size:A4 portrait;margin:10mm}
+ @media print{img{width:190mm;max-width:190mm}}
+ </style></head><body><img id="drawing" alt="Harmonograph drawing" src="${data}"></body></html>`);
+ w.document.close();
+ const im=w.document.getElementById('drawing');
+ const doPrint=()=>setTimeout(()=>{w.focus();w.print()},150);
+ if(im.complete) doPrint(); else im.onload=doPrint;
+ if(wasRunning) render(true);
+}
 
 drawingTab.onclick=()=>{drawingView.style.display='block';machineView.style.display='none';drawingTab.classList.add('active');machineTab.classList.remove('active')};
 machineTab.onclick=()=>{drawingView.style.display='none';machineView.style.display='block';machineTab.classList.add('active');drawingTab.classList.remove('active');machineRender();updateButtons()};
