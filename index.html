@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harmonograph v0.16</title>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harmonograph v0.17</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#f4f0e7;color:#292824;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:820px;margin:auto;padding:28px 18px 60px}h1{font-size:42px;margin:0 0 12px}.sub{font-size:20px}.wrap{background:#fff;border:1px solid #d8d1c4;border-radius:22px;overflow:hidden}canvas{display:block;width:100%;aspect-ratio:1}.controls,.speeds{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}button{border:0;border-radius:14px;padding:15px 18px;font-size:19px;font-weight:700;background:#2c2b27;color:#fff}.secondary{background:#858178}.status{font-size:19px;font-weight:700}.card{background:#fffdf8;border:1px solid #d8d1c4;border-radius:22px;padding:20px;margin:16px 0}.card h2{font-size:28px;margin:0 0 14px}label{display:block;font-size:18px;font-weight:650;margin:12px 0 6px}input,select{width:100%;font:inherit;font-size:20px;padding:13px;border:1px solid #cbc4b8;border-radius:12px;background:#fff}.tech{color:#777269}@media print{body{background:#fff}main>*{display:none!important}main,.wrap{display:block!important;margin:0!important;padding:0!important;max-width:none!important}.wrap{border:0!important;border-radius:0!important}canvas{width:100%!important}@page{size:A4 portrait;margin:15mm}}
 .tabs{display:flex;gap:8px;margin:12px 0 14px}.tab{background:#858178}.tab.active{background:#2c2b27}
 #machineView{display:none}.machineBox{background:#fff;border:1px solid #d8d1c4;border-radius:22px;overflow:hidden}
@@ -6,9 +6,9 @@
 @media print{.tabs,#machineView{display:none!important}#drawingView{display:block!important}}
 button:disabled{background:#aaa!important;color:#eee!important;cursor:default}
 </style></head>
-<body><main><h1>Harmonograph Simulator v0.16</h1><div class="tabs"><button id="drawingTab" class="tab active">Drawing</button><button id="machineTab" class="tab">Machine</button></div>
+<body><main><h1>Harmonograph Simulator v0.17</h1><div class="tabs"><button id="drawingTab" class="tab active">Drawing</button><button id="machineTab" class="tab">Machine</button></div>
 <div id="drawingView"><div class="wrap"><canvas id="cv" width="900" height="900"></canvas></div></div>
-<div id="machineView"><div class="machineBox"><canvas id="machine" width="900" height="900"></canvas></div><p class="machineNote">3D machine model — raised arms, opaque drawing plate and square-section frame. Motion is visually magnified.</p></div>
+<div id="machineView"><div class="machineBox"><canvas id="machine" width="900" height="900"></canvas></div><p class="machineNote">3D machine model — fixed tabletop pivots, raised arms and square-frame legs. Motion is visually magnified.</p></div>
 <div class="controls"><button id="start">Start</button><button id="pause" class="secondary">Pause</button><button id="reset" class="secondary">Reset</button><button id="print" class="secondary">Print / Save Drawing</button></div>
 <div class="status">Elapsed: <span id="elapsed">0.0</span> s &nbsp; Time advance: <span id="speedLabel">4×</span></div><div class="speeds"><button data-sp="1">1×</button><button data-sp="4">4×</button><button data-sp="16">16×</button><button data-sp="64">64×</button></div><div id="cards"></div>
 <p class="tech">Model: exponentially damped harmonic motion with continuous phase. “Decay time” is the plain-language control name for the damping time constant. Inputs lock during a run.</p></main>
@@ -35,11 +35,12 @@ function machineRender(){
 
  const prism=(x,y,z0,z1,w=18)=>{
    const A=[x-w,y-w],B=[x+w,y-w],C=[x+w,y+w],D=[x-w,y+w];
-   poly([[...A,z0],[...B,z0],[...B,z1],[...A,z1]],'rgba(196,194,188,.68)','#5e5b55',1.8);
-   poly([[...B,z0],[...C,z0],[...C,z1],[...B,z1]],'rgba(174,172,166,.62)','#5e5b55',1.8);
-   poly([[...D,z0],[...A,z0],[...A,z1],[...D,z1]],'rgba(214,212,206,.55)','#5e5b55',1.8);
-   line([[...A,z0],[...A,z1]],2,'#5e5b55'); line([[...B,z0],[...B,z1]],2,'#5e5b55');
-   line([[...C,z0],[...C,z1]],2,'#5e5b55'); line([[...D,z0],[...D,z1]],2,'#5e5b55');
+   poly([[...A,z0],[...B,z0],[...C,z0],[...D,z0]],'rgba(205,203,198,.52)','#5e5b55',1.7);
+   poly([[...A,z1],[...B,z1],[...C,z1],[...D,z1]],'rgba(205,203,198,.18)','#5e5b55',1.7);
+   line([[...A,z0],[...A,z1]],1.8,'#5e5b55');
+   line([[...B,z0],[...B,z1]],1.8,'#5e5b55');
+   line([[...C,z0],[...C,z1]],1.8,'#5e5b55');
+   line([[...D,z0],[...D,z1]],1.8,'#5e5b55');
  };
 
 
@@ -49,6 +50,16 @@ function machineRender(){
  
 
  
+
+ // Square-section table structure. Drawn before the upper mechanism but after
+ // the translucent tabletop so pendulum rods can be split around it.
+ const railBox=(a,b)=>{
+   line([[a[0],a[1],z+18],[b[0],b[1],z+18]],20,'#aaa7a0');
+   line([[a[0],a[1],z+5],[b[0],b[1],z+5]],4,'#5e5b55');
+ };
+ railBox([-s,-s],[s,-s]); railBox([s,-s],[s,s]); railBox([s,s],[-s,s]); railBox([-s,s],[-s,-s]);
+ [[-s,-s],[s,-s],[s,s],[-s,s]].forEach(([x,y])=>prism(x,y,z,500,18));
+
  // Layout: gimbal C near one corner. A and B lie at 90 degrees around that corner.
  const Cp=[-205,-205,z], Ap=[155,-205,z], Bp=[-205,155,z];
 
@@ -57,12 +68,12 @@ function machineRender(){
 
  // Linear pendulum A: passes through top and swings in X.
  const k=.72, L=320, aoff=av*k;
- const atopL=115; const Atop=[Ap[0]+aoff*(atopL/L),Ap[1],z-atopL], Abob=[Ap[0]-aoff,Ap[1],z+L]; line([Atop,Ap,Abob],4);
+ const atopL=115; const Atop=[Ap[0]+aoff*(atopL/L),Ap[1],z-atopL], Abob=[Ap[0]-aoff,Ap[1],z+L]; line([Ap,Abob],4); line([Atop,Ap],4);
  cyl(Abob,18,48,'#777');
 
  // Linear pendulum B: passes through top and swings in Y.
  const boff=bv*k;
- const btopL=115; const Btop=[Bp[0],Bp[1]+boff*(btopL/L),z-btopL], Bbob=[Bp[0],Bp[1]-boff,z+L]; line([Btop,Bp,Bbob],4);
+ const btopL=115; const Btop=[Bp[0],Bp[1]+boff*(btopL/L),z-btopL], Bbob=[Bp[0],Bp[1]-boff,z+L]; line([Bp,Bbob],4); line([Btop,Bp],4);
  cyl(Bbob,18,48,'#85817a');
 
  // Gimbal C under the corner drawing plate.
@@ -88,22 +99,21 @@ function machineRender(){
 
 
  
- // Foreground table structure. Drawing this last creates the visual occlusion
- // of pendulums passing through/seated in the tabletop frame.
- const railBox=(a,b)=>{
-   line([[a[0],a[1],z+18],[b[0],b[1],z+18]],20,'#aaa7a0');
-   line([[a[0],a[1],z+5],[b[0],b[1],z+5]],4,'#5e5b55');
-   line([[a[0],a[1],z+31],[b[0],b[1],z+31]],2,'#77736c');
- };
- railBox([-s,-s],[s,-s]); railBox([s,-s],[s,s]); railBox([s,s],[-s,s]); railBox([-s,s],[-s,-s]);
- [[-s,-s],[s,-s],[s,s],[-s,s]].forEach(([x,y])=>prism(x,y,z,500,18));
 
 
  // Drawing plate is an opaque foreground surface: anything physically below it is hidden.
- poly([[pcx-pw,pcy-ph,pz],[pcx+pw,pcy-ph,pz],[pcx+pw,pcy+ph,pz],[pcx-pw,pcy+ph,pz]],'#f4f2ec','#6b6862',3);
+ 
 
  // Redraw the two raised arms above the plate so they remain clearly visible.
 
+
+
+ // Opaque drawing plate hides C and all structure beneath it.
+ poly([[pcx-pw,pcy-ph,pz],[pcx+pw,pcy-ph,pz],[pcx+pw,pcy+ph,pz],[pcx-pw,pcy+ph,pz]],'#f4f2ec','#6b6862',3);
+
+ // A and B arms are above the tabletop and above the drawing plate.
+ line([AarmStart,joint],5,'#5e5b55');
+ line([BarmStart,joint],5,'#5e5b55');
  line([joint,[joint[0],joint[1],pz]],3,'#777');
  dot([joint[0],joint[1],pz],5,'#24b34b');
 
